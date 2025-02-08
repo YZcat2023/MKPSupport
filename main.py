@@ -249,9 +249,9 @@ def environment_check():  # 后处理前的操作
         Output_Filename = GSourceFile + "_Output.gcode"
     # print(Output_Filename)
     # 清除上一次生成的文件
-    for file in os.listdir():
-        if file == Output_Filename:
-            os.remove(file)
+    # for file in os.listdir():
+    #     if file == Output_Filename:
+    #         os.remove(file)
 
 
 def Str_Strip(line):
@@ -352,7 +352,7 @@ def main():
     environment_check()
     #print(process_ironing("G1 X6 Y6 E3",0.2,0))
     temp_file_name = Input_Filename.strip(".gcode")
-    TempExporter = open(temp_file_name + "_Output.gcode", "w", encoding="utf-8")
+    TempExporter = open(Output_Filename, "w", encoding="utf-8")
     with open(Input_Filename, "r", encoding="utf-8", errors='ignore') as f:  # 读取输入文件,此过程粗处理文件
         for line in f.readlines():
             line = line.strip('\n')  # 去掉换行符
