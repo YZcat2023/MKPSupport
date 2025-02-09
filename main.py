@@ -107,6 +107,14 @@ def get_preset_values():
         root.quit()  # 关闭弹窗
         return values
 
+    def on_closing():
+        # 在这里执行窗口关闭时的操作，比如询问用户是否确定要关闭窗口
+        if tk.messagebox.askokcancel("退出", "您真的要退出吗?"):
+            root.destroy()  # 如果用户确认，则关闭窗口
+            exit("User cancel")
+    # 绑定关闭事件处理函数到窗口关闭事件
+    popup.protocol("WM_DELETE_WINDOW", on_closing)
+
     style = ttk.Style()
     style.configure('Rounded.TButton', roundcorners=25)  # 设置圆角的大小
     ttk.Button(popup, text="确定", style='Rounded.TButton', command=on_submit).grid(row=len(labels), column=1,
@@ -215,14 +223,21 @@ def environment_check():  # 后处理前的操作
                 Iron_Flag=True
         if lines[index].find("熨烫挤出乘数") != -1:
             Iron_Extrude_Ratio = re.findall(r"\d+\.?\d*", lines[index])
-    Z_Offset = float(Z_Offset[0])
-    Max_Speed = float(Max_Speed[0])
-    X_Offset = float(X_Offset[0])
-    Y_Offset = float(Y_Offset[0])
-    Iron_Speed = float(Iron_Speed[0])
-    Iron_Extrude_Ratio = float(Iron_Extrude_Ratio[0])
-    Max_Speed=Max_Speed*60
-    Iron_Speed=Iron_Speed*60
+    try:
+        Z_Offset = float(Z_Offset[0])
+        Max_Speed = float(Max_Speed[0])
+        X_Offset = float(X_Offset[0])
+        Y_Offset = float(Y_Offset[0])
+        Iron_Speed = float(Iron_Speed[0])
+        Iron_Extrude_Ratio = float(Iron_Extrude_Ratio[0])
+        Max_Speed=Max_Speed*60
+        Iron_Speed=Iron_Speed*60
+    except:
+        DeleteConfig=tk.messagebox.askquestion(title='错误', message='您填写的预设参数不合法。需要删除这份预设吗？')
+        if DeleteConfig:
+            ConfigReader.close()
+            os.remove(os.path.dirname(os.path.abspath(sys.executable)) + "\\" + "Mrkcon.ini")
+        sys.exit("Illegal Input")
     if GSourceFile == "":  # 没有被传参
         # 检索目录下的所有gcode，x3g类文件
         for file in os.listdir():
@@ -445,6 +460,8 @@ def main():
 if __name__ == "__main__":
     main()
 # 等2秒再关闭
-window.mainloop()
+
 time.sleep(2)
 window.destroy()
+window.mainloop()
+exit(0)
