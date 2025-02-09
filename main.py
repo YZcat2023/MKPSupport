@@ -409,10 +409,12 @@ def main():
                     for index in range(len(InterFace)):
                         print(process_text(InterFace[index],0.2, 0), file=TempExporter)
                     print(";Ironing finished", file=TempExporter)
-                print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Lift nozzle", file=TempExporter)
+                print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 3, 3)) + ";Avoid Hitting", file=TempExporter)
                 for index in range(len(CustomLock)):
                     print(CustomLock[index], file=TempExporter)
-                print("G1 F" + str(Max_Speed), file=TempExporter)
+                print(process_text(InterFace[0], X_Offset, Y_Offset)+";In position", file=TempExporter)
+                print("G1 F" + str(Max_Speed)+";MKPSpeed", file=TempExporter)
+                print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Adjust Nozzle", file=TempExporter)
                 for index in range(len(InterFace)):
                     print(process_text(InterFace[index], X_Offset, Y_Offset), file=TempExporter)
                 InterFace.clear()  # 输出并清空已捕获的内容
@@ -426,9 +428,20 @@ def main():
             if line == primary_th and Copy_Flag == True:
                 Copy_Flag = False  # 不再记录
                 if InterFace:
-                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Lift nozzle", file=TempExporter)
+                    if Iron_Flag:
+                        print(";Ironing", file=TempExporter)
+                        print("G1 F" + str(Iron_Speed), file=TempExporter)
+                        for index in range(len(InterFace)):
+                            print(process_text(InterFace[index], 0.2, 0), file=TempExporter)
+                        print(";Ironing finished", file=TempExporter)
+                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 3, 3)) + ";Avoid Hitting",
+                          file=TempExporter)
+                    # print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Lift nozzle", file=TempExporter)
                     for index in range(len(CustomLock)):
                         print(CustomLock[index], file=TempExporter)
+                    print(process_text(InterFace[0], X_Offset, Y_Offset) + ";In position", file=TempExporter)
+                    print("G1 F" + str(Max_Speed) + ";MKPSpeed", file=TempExporter)
+                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Adjust Nozzle", file=TempExporter)
                     for index in range(len(InterFace)):
                         print(process_text(InterFace[index], X_Offset, Y_Offset), file=TempExporter)
                     InterFace.clear()  # 输出并清空已捕获的内容
