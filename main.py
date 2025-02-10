@@ -79,7 +79,7 @@ def get_preset_values():
     # else:
     #     labels = ["自定义收起G代码", "自定义放下G代码","喷嘴笔尖高度差","最高移动速度","擦嘴代码","X坐标补偿值","Y坐标补偿值"]
     labels = ["自定义收起G代码", "自定义放下G代码", "喷嘴笔尖高度差", "最高移动速度[MM/S]", "擦嘴代码", "X坐标补偿值",
-              "Y坐标补偿值", "熨烫接触面[Y/N]","熨烫速度[MM/S]","熨烫挤出乘数"]
+              "Y坐标补偿值", "熨烫接触面[Y/N]","熨烫速度[MM/S]","熨烫挤出乘数","使用擦嘴组件[Y/N]"]
     entries = []
     for i, label in enumerate(labels):
         tk.Label(popup, text=label + ":", justify='left', padx=10).grid(row=i, column=0, sticky='w')
@@ -127,7 +127,8 @@ def get_preset_values():
 
 
 def environment_check():  # 后处理前的操作
-    global CustomClean, CustomLock, CustomRelease, Z_Offset, Max_Speed, Iron_Speed,Iron_Flag,Iron_Extrude_Ratio, X_Offset, Y_Offset, Input_Filename, Output_Filename
+    global CustomClean, CustomLock, CustomRelease, Z_Offset, Max_Speed, Iron_Speed,Iron_Flag,Iron_Extrude_Ratio, X_Offset, Y_Offset, Wipe_Component_Flag, Input_Filename, Output_Filename
+    Wipe_Component_Flag=False
     valid_con = False
     valid_file = False
     print(os.path.dirname(os.path.abspath(sys.executable)))
@@ -156,6 +157,7 @@ def environment_check():  # 后处理前的操作
                 print("熨烫接触面[Y/N]:" + str(User_Input[7]), file=ConfigExporter)
                 print("熨烫速度:" + str(User_Input[8]), file=ConfigExporter)
                 print("熨烫挤出乘数:" + str(User_Input[9]), file=ConfigExporter)
+                print("使用擦嘴组件[Y/N]::"+str(User_Input[10]), file=ConfigExporter)
             ConfigExporter.close()
             tk.messagebox.showinfo(title='完成', message='数据已经录入。软件将自动关闭，请重新启动')
             sys.exit("Data Fetched")
@@ -221,6 +223,11 @@ def environment_check():  # 后处理前的操作
             lineco=lineco.replace("熨烫接触面[Y/N]", "")
             if lineco.find("Y")!=-1 or lineco.find("y")!=-1:
                 Iron_Flag=True
+        if lines[index].find("使用擦嘴组件[Y/N]") != -1:
+            lineco=lines[index]
+            lineco=lineco.replace("使用擦嘴组件[Y/N]", "")
+            if lineco.find("Y")!=-1 or lineco.find("y")!=-1:
+                Wipe_Component_Flag=True
         if lines[index].find("熨烫挤出乘数") != -1:
             Iron_Extrude_Ratio = re.findall(r"\d+\.?\d*", lines[index])
     try:
@@ -363,7 +370,12 @@ def main():
     Copy_Flag = False
     InterFace = []
     Current_Layer_Height = 0
+    Last_Layer_Height = 0
     Interrupt_flag = False
+    Skip_first_layer_Flag=True
+    Aft_Wipe_Flag=False
+    Skd_Flag=False
+    First_layer_Flag=True
     environment_check()
     #print(process_ironing("G1 X6 Y6 E3",0.2,0))
     temp_file_name = Input_Filename.strip(".gcode")
@@ -384,18 +396,45 @@ def main():
                 Layer_Flag = True
 
             if Layer_Flag == True and line.find(";Z:") != -1:
+                Last_Layer_Height = Current_Layer_Height
                 Current_Layer_Height = Str_Strip(line)
                 Layer_Flag = False
 
+            if Aft_Wipe_Flag:
+                if First_layer_Flag:
+                    print("G1 Z" + str(round(Last_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
+                          file=TempExporter)
+                    print("G1 F3000" + ";Custom_Wipe_Nozzle",
+                          file=TempExporter)
+                    for index in range(len(CustomClean)):
+                        if CustomClean[index].find("G1 F")==-1:
+                            print(CustomClean[index], file=TempExporter)
+                    print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
+                          file=TempExporter)
+                    First_layer_Flag=False
+                else:
+                    print("G1 Z" + str(round(Last_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
+                          file=TempExporter)
+                    for index in range(len(CustomClean)):
+                        print(CustomClean[index], file=TempExporter)
+                    print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
+                          file=TempExporter)
+                Aft_Wipe_Flag=False
+
             if line.find(";AFTER_LAYER_CHANGE") != -1:
-                if Copy_Flag == True:
+                if Copy_Flag == True or Skd_Flag==True:
                     Interrupt_flag = True
+                    Skd_Flag = False
+                if Wipe_Component_Flag == False and Skip_first_layer_Flag==False:
+                    Aft_Wipe_Flag=True
+                Skip_first_layer_Flag=False
+
 
             # 发现不是模型主体的材料，那就是要开始记录了
             if line.find("T") == 0 and line != primary_th:
                 print("This Toolhead is:" + line)
                 Copy_Flag = True  # 开始记录
-            if Copy_Flag == True and line.find("G1") != -1 and line.find("G1 E") == -1 and line.find(
+            if Copy_Flag == True and line.find("G1 ") != -1 and line.find("G1 E") == -1 and line.find(
                     "G1 Z") == -1 and line.find("G1 F") == -1:  # 只记录G1指令
                 InterFace.append(line)  # 记录
 
@@ -421,37 +460,43 @@ def main():
                 print("G1 Z" + str(round(Current_Layer_Height+Z_Offset+2, 3)) + ";Avoid leaking", file=TempExporter)
                 for index in range(len(CustomRelease)):
                     print(CustomRelease[index], file=TempExporter)
-                for index in range(len(CustomClean)):
-                    print(CustomClean[index], file=TempExporter)
+                # print("G1 Z" + str(round(Last_Layer_Height, 3)) + ";Wiping nozzle", file=TempExporter)
+                if Wipe_Component_Flag:
+                    for index in range(len(CustomClean)):
+                        print(CustomClean[index], file=TempExporter)
+
                 print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Lower nozzle", file=TempExporter)
             # 又用到主体的材料了
             if line == primary_th and Copy_Flag == True:
                 Copy_Flag = False  # 不再记录
                 if InterFace:
-                    if Iron_Flag:
-                        print(";Ironing", file=TempExporter)
-                        print("G1 F" + str(Iron_Speed), file=TempExporter)
-                        for index in range(len(InterFace)):
-                            print(process_text(InterFace[index], 0.2, 0), file=TempExporter)
-                        print(";Ironing finished", file=TempExporter)
-                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 3, 3)) + ";Avoid Hitting",
-                          file=TempExporter)
-                    # print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Lift nozzle", file=TempExporter)
-                    for index in range(len(CustomLock)):
-                        print(CustomLock[index], file=TempExporter)
-                    print(process_text(InterFace[0], X_Offset, Y_Offset) + ";In position", file=TempExporter)
-                    print("G1 F" + str(Max_Speed) + ";MKPSpeed", file=TempExporter)
-                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Adjust Nozzle", file=TempExporter)
-                    for index in range(len(InterFace)):
-                        print(process_text(InterFace[index], X_Offset, Y_Offset), file=TempExporter)
-                    InterFace.clear()  # 输出并清空已捕获的内容
-                    print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 2, 3)) + ";Avoid leaking",
-                          file=TempExporter)
-                    for index in range(len(CustomRelease)):
-                        print(CustomRelease[index], file=TempExporter)
-                    for index in range(len(CustomClean)):
-                        print(CustomClean[index], file=TempExporter)
-                    print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Lower nozzle", file=TempExporter)
+                    Skd_Flag=True
+                # if InterFace:
+                #     if Iron_Flag:
+                #         print(";Ironing", file=TempExporter)
+                #         print("G1 F" + str(Iron_Speed), file=TempExporter)
+                #         for index in range(len(InterFace)):
+                #             print(process_text(InterFace[index], 0.2, 0), file=TempExporter)
+                #         print(";Ironing finished", file=TempExporter)
+                #     print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 3, 3)) + ";Avoid Hitting",
+                #           file=TempExporter)
+                #     # print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Lift nozzle", file=TempExporter)
+                #     for index in range(len(CustomLock)):
+                #         print(CustomLock[index], file=TempExporter)
+                #     print(process_text(InterFace[0], X_Offset, Y_Offset) + ";In position", file=TempExporter)
+                #     print("G1 F" + str(Max_Speed) + ";MKPSpeed", file=TempExporter)
+                #     print("G1 Z" + str(round(Current_Layer_Height + Z_Offset, 3)) + ";Adjust Nozzle", file=TempExporter)
+                #     for index in range(len(InterFace)):
+                #         print(process_text(InterFace[index], X_Offset, Y_Offset), file=TempExporter)
+                #     InterFace.clear()  # 输出并清空已捕获的内容
+                #     print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 2, 3)) + ";Avoid leaking",
+                #           file=TempExporter)
+                #     for index in range(len(CustomRelease)):
+                #         print(CustomRelease[index], file=TempExporter)
+                #     if Wipe_Component_Flag:
+                #         for index in range(len(CustomClean)):
+                #             print(CustomClean[index], file=TempExporter)
+                #     print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Lower nozzle", file=TempExporter)
             print(line, file=TempExporter)
     f.close()
     TempExporter.close()
