@@ -97,7 +97,7 @@ See the [open issues](https://github.com/YZcat2023/MKPSupport/issues) for a full
 
 <!-- CONTRIBUTING -->
 ## Contributing
-Thanks to okookey for translating the English instructions
+Thanks to thkfy for programming supports and okookey for translating the English instructions
 
 <!-- LICENSE -->
 ## License
