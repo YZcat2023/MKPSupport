@@ -86,9 +86,10 @@ Get two M2.5*5 screws and four magnets with a diameter of 4mm and a thickness of
 
 - [x] Ironing support interfaces option
 - [x] Add MKP Manual.pdf
-- [ ] Add multi-color support
 - [ ] Multi-language Support
     - [ ] English
+- [ ] Add multi-color support
+
 
 See the [open issues](https://github.com/YZcat2023/MKPSupport/issues) for a full list of proposed features (and known issues).
 
