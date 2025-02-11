@@ -96,7 +96,7 @@ See the [open issues](https://github.com/YZcat2023/MKPSupport/issues) for a full
 
 <!-- CONTRIBUTING -->
 ## Contributing
-Currently, there are no other contributors on this project. We welcome anyone who would like to join!
+Thanks to okookey for translating the English instructions
 
 <!-- LICENSE -->
 ## License
