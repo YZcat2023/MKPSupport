@@ -43,6 +43,9 @@ window.tk.call('tk', 'scaling', ScaleFactor / 75)
 # X_Inoperable=0#X轴移动到此位置不可改变笔杆角度
 # Y_Lockdown=0#Y轴移动到此位置即使得笔杆锁定到工作位
 # Y_Release=0#Y轴移动到此位置使得笔杆不再可工作
+Iron_Flag=False
+Wipe_Component_Flag=False
+Iron_Extrude_Ratio=0
 Z_Offset = 0  # 笔尖在工作位时比喷嘴更低，这个值是喷嘴与笔尖间的高度差
 CustomClean = []  # 自定义擦嘴代码
 NocleanThreshold = 0  # 超过该等待时间即进行擦嘴
@@ -53,6 +56,7 @@ Max_Speed = 0  # 最高移动速度
 Max_Acceleration = 0  # 最高加速度
 CustomRelease = []  # 自定义收回（收回笔杆）
 CustomLock = []  # 自定义锁定（放下笔杆）
+CustomFirstLayer=[]
 # 是否有Mrkcon.ini，如果没有则自动创建
 Create_New_Config = 'no'
 User_Input = []
@@ -79,12 +83,12 @@ def get_preset_values():
     # else:
     #     labels = ["自定义收起G代码", "自定义放下G代码","喷嘴笔尖高度差","最高移动速度","擦嘴代码","X坐标补偿值","Y坐标补偿值"]
     labels = ["自定义收起G代码", "自定义放下G代码", "喷嘴笔尖高度差", "最高移动速度[MM/S]", "擦嘴代码", "X坐标补偿值",
-              "Y坐标补偿值", "熨烫接触面[Y/N]","熨烫速度[MM/S]","熨烫挤出乘数","使用擦嘴组件[Y/N]"]
+              "Y坐标补偿值", "熨烫接触面[Y/N]","熨烫速度[MM/S]","熨烫挤出乘数","使用擦嘴组件[Y/N]","自定义擦拭首层"]
     entries = []
     for i, label in enumerate(labels):
         tk.Label(popup, text=label + ":", justify='left', padx=10).grid(row=i, column=0, sticky='w')
         entry = tk.Entry(popup)
-        if label in ["自定义收起G代码", "自定义放下G代码", "擦嘴代码"]:
+        if label in ["自定义收起G代码", "自定义放下G代码", "擦嘴代码","自定义擦拭首层"]:
             # 对于特定的label，使用scrolledtext.ScrolledText来创建带有滚动条的Text控件
             text_box = scrolledtext.ScrolledText(popup, wrap=tk.WORD, width=10, height=3.5)
             text_box.grid(row=i, column=1, padx=10, sticky='ew')  # sticky='ew' 使控件在列中水平扩展
@@ -157,7 +161,8 @@ def environment_check():  # 后处理前的操作
                 print("熨烫接触面[Y/N]:" + str(User_Input[7]), file=ConfigExporter)
                 print("熨烫速度:" + str(User_Input[8]), file=ConfigExporter)
                 print("熨烫挤出乘数:" + str(User_Input[9]), file=ConfigExporter)
-                print("使用擦嘴组件[Y/N]::"+str(User_Input[10]), file=ConfigExporter)
+                print("使用擦嘴组件[Y/N]:"+str(User_Input[10]), file=ConfigExporter)
+                print("自定义擦拭首层:" + os.linesep + str(User_Input[11]), file=ConfigExporter)
             ConfigExporter.close()
             tk.messagebox.showinfo(title='完成', message='数据已经录入。软件将自动关闭，请重新启动')
             sys.exit("Data Fetched")
@@ -202,6 +207,13 @@ def environment_check():  # 后处理前的操作
             else:
                 Copy_path_flag = False
                 break
+    for index in range(len(lines)):
+        if lines[index].find("自定义擦拭首层") != -1:
+            Copy_path_flag = True
+        if Copy_path_flag == True:
+            if lines[index].find("自定义擦拭首层") == -1:
+                CustomFirstLayer.append(lines[index])
+    print(CustomFirstLayer)
 
     for index in range(len(lines)):
         if lines[index].find("喷嘴笔尖") != -1:
@@ -404,11 +416,8 @@ def main():
                 if First_layer_Flag:
                     print("G1 Z" + str(round(Last_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
                           file=TempExporter)
-                    print("G1 F3000" + ";Custom_Wipe_Nozzle",
-                          file=TempExporter)
-                    for index in range(len(CustomClean)):
-                        if CustomClean[index].find("G1 F")==-1:
-                            print(CustomClean[index], file=TempExporter)
+                    for index in range(len(CustomFirstLayer)):
+                        print(CustomFirstLayer[index], file=TempExporter)
                     print("G1 Z" + str(round(Current_Layer_Height, 3)) + ";Custom_Wipe_Nozzle",
                           file=TempExporter)
                     First_layer_Flag=False
@@ -446,8 +455,16 @@ def main():
                     print(";Ironing", file=TempExporter)
                     print("G1 F" + str(Iron_Speed), file=TempExporter)
                     for index in range(len(InterFace)):
-                        print(process_text(InterFace[index],0.2, 0), file=TempExporter)
+                        print(process_ironing(InterFace[index],0.2, 0), file=TempExporter)
+                    print("G1 E-2;Ironing Retraction", file=TempExporter)
+                    print(process_text(InterFace[len(InterFace)-1],2,0),file=TempExporter)
+                    print("G92 E0", file=TempExporter)
                     print(";Ironing finished", file=TempExporter)
+                else:
+                    print("G1 E-2;Ironing Retraction", file=TempExporter)
+                    print(process_text(InterFace[len(InterFace) - 1],2,0), file=TempExporter)
+                    print("G92 E0", file=TempExporter)
+
                 print("G1 Z" + str(round(Current_Layer_Height + Z_Offset + 3, 3)) + ";Avoid Hitting", file=TempExporter)
                 for index in range(len(CustomLock)):
                     print(CustomLock[index], file=TempExporter)
