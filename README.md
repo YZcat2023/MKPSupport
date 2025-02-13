@@ -67,7 +67,7 @@ Here's why:
 ## Illustration
 Here are some printed samples. More photos may come, stay tuned!
 ![Descriptive Alt Text](Images/blue.jpg)
-
+![Descriptive Alt Text](Images/1739420103133.jpg)
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
