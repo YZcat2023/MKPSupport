@@ -1,0 +1,8 @@
+[project]
+name = "MKPSupport"
+version = "3.1.0"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=10.2.0",
+]
