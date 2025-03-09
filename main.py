@@ -390,7 +390,7 @@ def copy_user_command():
     center_window(root1)
     def copy_curr_exe_path():
         root1.clipboard_clear()
-        root1.clipboard_append( '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' + para.Preset_Name)
+        root1.clipboard_append(  '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' )
         tk.messagebox.showinfo(title='完成', message='路径已复制。软件将自动关闭')
         root1.quit()
     custom_font = tkFont.Font(family="SimHei", size=12)
@@ -414,7 +414,7 @@ def copy_user_command():
 
     # 将文本框与滚动条关联
     path_text.config(xscrollcommand=scroll_x.set)
-    path_text.insert(tk.END, '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' + para.Preset_Name)
+    path_text.insert(tk.END, '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' )
     path_text.pack()
     copy_button = ttk.Button(root1, style='Rounded.TButton',text='复制',command=copy_curr_exe_path)
     # print(para.Path_Copy_Button_Flag)
