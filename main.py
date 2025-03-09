@@ -14,10 +14,18 @@ GSourceFile = ""
 TomlName=""
 Modify_Config_Flag=False
 try:
-    GSourceFile = sys.argv[2]
-    print(GSourceFile)
-    TomlName = sys.argv[1]
-    print(TomlName)
+    parser = argparse.ArgumentParser(description='MKP loading')
+    parser.add_argument('--Toml', type=str, help='TOML配置文件路径')
+    parser.add_argument('--Gcode', type=str, help='Gcode文件路径')
+    args = parser.parse_args()
+    Modify_Config_Flag = True
+    if args.Toml:
+        TomlName = args.Toml
+        Modify_Config_Flag = False
+    if args.Gcode:
+        GSourceFile = args.Gcode
+    print(args.Gcode,args.Toml,Modify_Config_Flag)
+
 except:
     Modify_Config_Flag=True
     # GSourceFile = "C:\\Users\\Administrator\\Desktop\\GcodeTest\\test.gcode"
@@ -390,7 +398,7 @@ def copy_user_command():
     center_window(root1)
     def copy_curr_exe_path():
         root1.clipboard_clear()
-        root1.clipboard_append(  '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' )
+        root1.clipboard_append(  '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' + " --Gcode " )
         tk.messagebox.showinfo(title='完成', message='路径已复制。软件将自动关闭')
         root1.quit()
     custom_font = tkFont.Font(family="SimHei", size=12)
@@ -414,7 +422,7 @@ def copy_user_command():
 
     # 将文本框与滚动条关联
     path_text.config(xscrollcommand=scroll_x.set)
-    path_text.insert(tk.END, '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' )
+    path_text.insert(tk.END, '"' + os.path.abspath(sys.executable) + '"'+ ' --Toml ' +'"' +  para.Preset_Name+'"' + " --Gcode ")
     path_text.pack()
     copy_button = ttk.Button(root1, style='Rounded.TButton',text='复制',command=copy_curr_exe_path)
     # print(para.Path_Copy_Button_Flag)
@@ -597,6 +605,8 @@ def main():
     Layer_Thickness=0
     if Modify_Config_Flag:
         select_toml_file()
+    tk.messagebox.showinfo(title='警报', message="GSourceFile:"+GSourceFile)
+    tk.messagebox.showinfo(title='警报', message="TomlName:"+TomlName)
     environment_check()
     Layer_Height_Index = {}
     para.Ironing_Speed=para.Ironing_Speed*60
