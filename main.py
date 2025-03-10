@@ -226,6 +226,11 @@ def get_preset_values(Mode):
                 ironing_checkbox.deselect()
             else:
                 ironing_checkbox.select()
+            if label == "擦料塔的起始点":
+                entry_x.delete(0, tk.END)
+                entry_y.delete(0, tk.END)
+                entry_x.insert(0, para.Wiper_x)
+                entry_y.insert(0, para.Wiper_y)
 
     def on_submit():
         global User_Input
@@ -639,7 +644,7 @@ def main():
             para.First_Layer_Speed = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
         if CurrGCommand.find("; outer_wall_speed =") != -1:
-            para.Outer_Wall_Speed = Num_Strip(CurrGCommand)[0]
+            para.Typical_Layer_Speed = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
         if Diameter_Count==6:
             break
