@@ -82,7 +82,8 @@ class para:
     Wiper_x=0
     Wiper_y=0
     Preset_Name=""
-
+    First_Layer_Height=0
+    Typical_Layer_Height=0
 User_Input = []
 Output_Filename=""
 
@@ -605,8 +606,10 @@ def main():
     Layer_Thickness=0
     if Modify_Config_Flag:
         select_toml_file()
-    tk.messagebox.showinfo(title='警报', message="GSourceFile:"+GSourceFile)
-    tk.messagebox.showinfo(title='警报', message="TomlName:"+TomlName)
+        exit("Manager Exit")
+    # tk.messagebox.showinfo(title='警报', message="GSourceFile:"+GSourceFile)
+    # tk.messagebox.showinfo(title='警报', message="TomlName:"+TomlName)
+    read_toml_config(TomlName)
     environment_check()
     Layer_Height_Index = {}
     para.Ironing_Speed=para.Ironing_Speed*60
@@ -624,11 +627,18 @@ def main():
         if CurrGCommand.find("; nozzle_diameter = ") != -1:
             para.Nozzle_Diameter = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
-        if Diameter_Count==2:
+        if CurrGCommand.find("; first_layer_height = ") != -1:
+            para.First_Layer_Height = Num_Strip(CurrGCommand)[0]
+            Diameter_Count+=1
+        if CurrGCommand.find("; layer_height = ") != -1:
+            para.Typical_Layer_Height = Num_Strip(CurrGCommand)[0]
+            Diameter_Count+=1
+        if Diameter_Count==4:
             break
     
     with open(GSourceFile, 'r', encoding='utf-8') as file:
         content = file.readlines()
+    Output_Filename = GSourceFile + "_Output.gcode"
     TempExporter = open(Output_Filename+'.te', "w", encoding="utf-8")
     for i in range(len(content)):
         CurrGCommand = content[i].strip("\n")
@@ -751,6 +761,7 @@ def main():
     Last_Layer_Height=0
     Last_Key=max(Layer_Height_Index.keys())
     # print("Last Key:",Last_Key)
+    Output_Filename = GSourceFile + "_Output.gcode"
     with open(Output_Filename+'.te', 'r', encoding='utf-8') as file:
         content = file.readlines()
     GcodeExporter = open(Output_Filename, "w", encoding="utf-8")
@@ -766,20 +777,18 @@ def main():
                 FirstLayer_Tower_Height=Current_Layer_Height
             if Current_Layer_Height<Last_Key+0.4:
                 Tower_Flag=True
-
-        if CurrGCommand.find(";LAYER_CHANGE") != -1 and First_layer_Tower_Flag==True and para.Have_Wiping_Components.get()==True and FirstLayer_Tower_Height>0.01:
+        #输出首层塔代码
+        if CurrGCommand.find(";LAYER_CHANGE") != -1 and First_layer_Tower_Flag==True and para.Have_Wiping_Components.get()==True:
             First_layer_Tower_Flag=False
-            print("G1 Z" + str(round(FirstLayer_Tower_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
-            try:
-                para.Tower_Extrude_Ratio = round(Layer_Height_Index[Current_Layer_Height][4] / 0.2, 3)
-            except:
-                para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
+            print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
+            para.Tower_Extrude_Ratio = round(para.First_Layer_Height/ 0.2, 3)
             print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
             for j in range(len(para.Tower_Base_Layer_Gcode)):
                 if para.Tower_Base_Layer_Gcode[j].find("G1 ") != -1 and para.Tower_Base_Layer_Gcode[j].find("G1 E") == -1 and para.Tower_Base_Layer_Gcode[j].find("G1 F") == -1:
                     # print(para.Tower_Base_Layer_Gcode[1])
-                    para.Tower_Base_Layer_Gcode[j] = Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],0, 0, 0,'tower')
-                    print(para.Tower_Base_Layer_Gcode[j].strip("\n"), file=GcodeExporter)
+                    TowerGCTemp=Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
+                    # para.Tower_Base_Layer_Gcode[j] = Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],0, 0, 0,'tower')
+                    print(TowerGCTemp.strip("\n"), file=GcodeExporter)
             print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
         
         if Trigger_Flag==True and CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and Layer_Height_Index[Current_Layer_Height][0] != []:
@@ -806,34 +815,18 @@ def main():
             print(";Unmounting Toolhead", file=GcodeExporter)
             print(para.Custom_Unmount_Gcode.strip("\n"), file=GcodeExporter)
             print(";Toolhead Unmounted", file=GcodeExporter)
-
-            if para.Have_Wiping_Components.get()==True and First_layer_Flag==True:
-                print(";Tower Base Layer", file=GcodeExporter)
-                # print(para.Tower_Base_Layer_Gcode.strip("\n"), file=GcodeExporter)
-                for j in range(len(para.Tower_Base_Layer_Gcode)):
-                    if para.Tower_Base_Layer_Gcode[j].find("G1 ") != -1 and para.Tower_Base_Layer_Gcode[j].find("G1 E") == -1 and para.Tower_Base_Layer_Gcode[j].find("G1 F") == -1:
-                        para.Tower_Base_Layer_Gcode[j] = Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],para.Wiper_x, para.Wiper_y, 0,'tower')
-                        print(para.Tower_Base_Layer_Gcode[j].strip("\n"), file=GcodeExporter)
-                print(";Tower Base Layer Finished", file=GcodeExporter)
-                First_layer_Flag=False
-            print(";Move to the next print start position", file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
-            print(Layer_Height_Index[Current_Layer_Height][3], file=GcodeExporter)
-            print(";Lowering Nozzle", file=GcodeExporter)   
-            print("G1 Z" + str(round(Current_Layer_Height, 3)), file=GcodeExporter)
-        
+        #输出后续塔代码
         if CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and para.Have_Wiping_Components.get()==True and Tower_Flag==True and First_layer_Tower_Flag==False:
             Tower_Flag=False
+            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter)
             print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
-            try:
-                para.Tower_Extrude_Ratio = round(Layer_Height_Index[Current_Layer_Height][4] / 0.2, 3)
-            except:
-                para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
-            
+            para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
+            if para.Tower_Extrude_Ratio<0 or para.Tower_Extrude_Ratio==0:
+                para.Tower_Extrude_Ratio=round(para.Typical_Layer_Height / 0.2, 3)
             for j in range(len(para.Wiping_Gcode)):
                 # if para.Wiping_Gcode[j].find("G1 ") != -1 and para.Wiping_Gcode[j].find("G1 E") == -1 and para.Wiping_Gcode[j].find("G1 F") == -1:
-                para.Wiping_Gcode[j] = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x, para.Wiper_y, 0,'tower')
-                print(para.Wiping_Gcode[j].strip("\n"),file=GcodeExporter)
+                TowerGCTemp = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
+                print(TowerGCTemp.strip("\n"),file=GcodeExporter)
             print("G1 F" + str(para.Travel_Speed), file=GcodeExporter)
         print(CurrGCommand, file=GcodeExporter)
     GcodeExporter.close()

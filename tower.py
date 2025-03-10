@@ -2,6 +2,7 @@ Temp_Wiping_Gcode = """
 ;Tower_Layer_Gcode
 G92 E0
 G1 X20 Y10.19
+G1 F9600
 G1 X20 Y20 E.25658
 G1 X29.81 Y20 E.25658
 G1 E-.21 F5400
