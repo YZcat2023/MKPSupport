@@ -84,6 +84,8 @@ class para:
     Preset_Name=""
     First_Layer_Height=0
     Typical_Layer_Height=0
+    First_Layer_Speed=0
+    Typical_Layer_Speed=0
 User_Input = []
 Output_Filename=""
 
@@ -633,7 +635,13 @@ def main():
         if CurrGCommand.find("; layer_height = ") != -1:
             para.Typical_Layer_Height = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
-        if Diameter_Count==4:
+        if CurrGCommand.find("; initial_layer_speed =") != -1:
+            para.First_Layer_Speed = Num_Strip(CurrGCommand)[0]
+            Diameter_Count+=1
+        if CurrGCommand.find("; outer_wall_speed =") != -1:
+            para.Outer_Wall_Speed = Num_Strip(CurrGCommand)[0]
+            Diameter_Count+=1
+        if Diameter_Count==6:
             break
     
     with open(GSourceFile, 'r', encoding='utf-8') as file:
@@ -782,14 +790,16 @@ def main():
             First_layer_Tower_Flag=False
             print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
             para.Tower_Extrude_Ratio = round(para.First_Layer_Height/ 0.2, 3)
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
+            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
             for j in range(len(para.Tower_Base_Layer_Gcode)):
                 if para.Tower_Base_Layer_Gcode[j].find("G1 ") != -1 and para.Tower_Base_Layer_Gcode[j].find("G1 E") == -1 and para.Tower_Base_Layer_Gcode[j].find("G1 F") == -1:
                     # print(para.Tower_Base_Layer_Gcode[1])
                     TowerGCTemp=Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
                     # para.Tower_Base_Layer_Gcode[j] = Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],0, 0, 0,'tower')
                     print(TowerGCTemp.strip("\n"), file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
+                elif para.Tower_Base_Layer_Gcode[j].find("G1 F9600") != -1:
+                    print("G1 F" + str(para.First_Layer_Speed*60), file=GcodeExporter)
+            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
         
         if Trigger_Flag==True and CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and Layer_Height_Index[Current_Layer_Height][0] != []:
             Trigger_Flag=False
@@ -818,16 +828,19 @@ def main():
         #输出后续塔代码
         if CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and para.Have_Wiping_Components.get()==True and Tower_Flag==True and First_layer_Tower_Flag==False:
             Tower_Flag=False
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter)
+            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter)
             print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
             para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
             if para.Tower_Extrude_Ratio<0 or para.Tower_Extrude_Ratio==0:
                 para.Tower_Extrude_Ratio=round(para.Typical_Layer_Height / 0.2, 3)
             for j in range(len(para.Wiping_Gcode)):
                 # if para.Wiping_Gcode[j].find("G1 ") != -1 and para.Wiping_Gcode[j].find("G1 E") == -1 and para.Wiping_Gcode[j].find("G1 F") == -1:
-                TowerGCTemp = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
-                print(TowerGCTemp.strip("\n"),file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter)
+                if para.Wiping_Gcode[j].find("G1 F9600") != -1:
+                    print("G1 F" + str(para.Typical_Layer_Speed*60), file=GcodeExporter)
+                else:
+                    TowerGCTemp = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
+                    print(TowerGCTemp.strip("\n"),file=GcodeExporter)
+            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter)
         print(CurrGCommand, file=GcodeExporter)
     GcodeExporter.close()
     try:
