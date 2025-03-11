@@ -86,6 +86,7 @@ class para:
     Typical_Layer_Height=0
     First_Layer_Speed=0
     Typical_Layer_Speed=0
+    Retract_Length=0
 User_Input = []
 Output_Filename=""
 
@@ -646,6 +647,9 @@ def main():
         if CurrGCommand.find("; outer_wall_speed =") != -1:
             para.Typical_Layer_Speed = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
+        if CurrGCommand.find("; retraction_length = ") != -1:
+            para.Retract_Length = Num_Strip(CurrGCommand)[0]
+            Diameter_Count+=1
         if Diameter_Count==6:
             break
     
@@ -842,6 +846,14 @@ def main():
                 # if para.Wiping_Gcode[j].find("G1 ") != -1 and para.Wiping_Gcode[j].find("G1 E") == -1 and para.Wiping_Gcode[j].find("G1 F") == -1:
                 if para.Wiping_Gcode[j].find("G1 F9600") != -1:
                     print("G1 F" + str(para.Typical_Layer_Speed*60), file=GcodeExporter)
+                elif para.Wiping_Gcode[j].find("EXTRUDER_REFILL")!=-1:
+                    print("G92 E0",file=GcodeExporter)
+                    print("G1 E"+str(para.Retract_Length),file=GcodeExporter)
+                    print("G92 E0",file=GcodeExporter)
+                elif para.Wiping_Gcode[j].find("EXTRUDER_RETRACT")!=-1:
+                    print("G92 E0",file=GcodeExporter)
+                    print("G1 E-"+str(para.Retract_Length),file=GcodeExporter)
+                    print("G92 E0",file=GcodeExporter)
                 else:
                     TowerGCTemp = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
                     print(TowerGCTemp.strip("\n"),file=GcodeExporter)
