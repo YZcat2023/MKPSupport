@@ -1,6 +1,6 @@
 Temp_Wiping_Gcode = """
 ;Tower_Layer_Gcode
-G92 E0
+EXTRUDER_REFILL
 G1 X20 Y10.19
 G1 F9600
 G1 X20 Y20 E.25658
@@ -36,6 +36,7 @@ G1 F9547.071
 G1 X28.8 Y29.762 E-.09
 ;WIPE_END
 G1 X28.7 Y29.76
+EXTRUDER_RETRACT
 ;Tower_Layer_Gcode Finished
 """ 
 Temp_Tower_Base_Layer_Gcode = """
