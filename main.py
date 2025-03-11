@@ -650,7 +650,7 @@ def main():
         if CurrGCommand.find("; retraction_length = ") != -1:
             para.Retract_Length = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
-        if Diameter_Count==6:
+        if Diameter_Count==7:
             break
     
     with open(GSourceFile, 'r', encoding='utf-8') as file:
@@ -809,6 +809,8 @@ def main():
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E-"+str(para.Retract_Length),file=GcodeExporter)
                     print("G92 E0",file=GcodeExporter)
+                elif para.Tower_Base_Layer_Gcode[j].find("G92 E0") != -1:
+                    print("G92 E0",file=GcodeExporter)
                 elif para.Tower_Base_Layer_Gcode[j].find("G1 ") != -1 and para.Tower_Base_Layer_Gcode[j].find("G1 E") == -1 and para.Tower_Base_Layer_Gcode[j].find("G1 F") == -1:
                     # print(para.Tower_Base_Layer_Gcode[1])
                     TowerGCTemp=Process_GCode_Offset(para.Tower_Base_Layer_Gcode[j],para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
@@ -866,6 +868,8 @@ def main():
                     print("G1 E-.21 F5400",file=GcodeExporter)
                 elif para.Wiping_Gcode[j].find("G1 E.3 F5400") != -1:
                     print("G1 E.3 F5400",file=GcodeExporter)
+                elif para.Wiping_Gcode[j].find("G92 E0") != -1:
+                    print("G92 E0",file=GcodeExporter)
                 else:
                     TowerGCTemp = Process_GCode_Offset(para.Wiping_Gcode[j], para.Wiper_x-5, para.Wiper_y-5, 0,'tower')
                     print(TowerGCTemp.strip("\n"),file=GcodeExporter)
