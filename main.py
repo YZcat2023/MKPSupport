@@ -724,7 +724,7 @@ def main():
                 pass
             print(";Glueing Started", file=TempExporter)
             print(";Inposition", file=TempExporter)
-            print("G1 F" + str(para.Travel_Speed), file=TempExporter) 
+            print("G1 F" + str(para.Travel_Speed*60), file=TempExporter) 
             print(Process_GCode_Offset(last_xy_command_in_other_features, para.X_Offset, para.Y_Offset, para.Z_Offset+3,'normal').strip("\n"), file=TempExporter)#Inposition
             print("G1 Z" + str(round(Current_Layer_Height+para.Z_Offset, 3)), file=TempExporter)#Adjust
             print("G1 F"+str(para.Max_Speed),file=TempExporter)
@@ -746,7 +746,7 @@ def main():
             print(para.Custom_Unmount_Gcode.strip("\n"), file=TempExporter)
             print(";Toolhead Unmounted", file=TempExporter)
             print(";Move to the next print start position", file=TempExporter)
-            print("G1 F" + str(para.Travel_Speed), file=TempExporter) 
+            print("G1 F" + str(para.Travel_Speed*60), file=TempExporter) 
             print(Physical_Glueing_Point,file=TempExporter)
             print(";Lowering Nozzle", file=TempExporter)
             print("G1 Z" + str(round(Last_Layer_Height, 3)), file=TempExporter)
@@ -828,7 +828,7 @@ def main():
             print(";Rising Nozzle", file=GcodeExporter)
             print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset+3, 3)), file=GcodeExporter)#Avoid collision
             print(";Inposition", file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed), file=GcodeExporter) 
+            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
             print(Layer_Height_Index[Current_Layer_Height][2], file=GcodeExporter)
             print(";Adjusting Nozzle", file=GcodeExporter)
             print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset, 3)), file=GcodeExporter)
