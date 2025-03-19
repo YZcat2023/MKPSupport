@@ -1,5 +1,5 @@
 ## 这是voron2.4适配的stl文件(还在测试中)
-<img width="600px" src="overview.png" alt="sample">
+<img width="841px" src="overview.png" alt="sample">
 将以下所有模型打印一份，并且根据手册进行安装调试。
 
 ## BOM
