@@ -43,7 +43,7 @@ Here are some printed samples. More photos may come, stay tuned!
 <img width="600px" src="images/1739420103133.jpg" alt="sample">
 
 ## Getting Started
-
+Before starting, we suggest joining our group: QQ，668350689
 For more details, please refer to [MKP Manual.pdf](MKP-English.pdf).
 
 1. Have some gluepen refills("点点胶替芯" in Chinese）and one bottle of liquid glue.
