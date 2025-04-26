@@ -452,7 +452,19 @@ def format_xyze_string(text):
     text = re.sub(r'(Z)([\d.]+)', lambda m: process_data(m), text)
     return text
 # print(format_xyze_string('G1 X.9 Y.9 Z.9'))
-
+def check_validity_interface_set(interface):
+    Have_Extrude_Flag=False
+    dot_count=0
+    for i in interface:
+        if i.find(" E") != -1 and i.find(" Z")==-1 and (i.find("X")!=-1 or i.find("Y")!=-1):
+            E_index=i.find("E")
+            TmpEChk=i[E_index:]
+            if TmpEChk.find("-") == -1:
+                dot_count+=1
+            if dot_count>=1:
+                Have_Extrude_Flag=True
+                break
+    return Have_Extrude_Flag
 #这个函数用来做Gcode的偏移，也负责E挤出的流量调整
 def Process_GCode_Offset(GCommand, x_offset, y_offset,z_offset, Mode):
     if GCommand.find("F") != -1:
@@ -686,13 +698,25 @@ def main():
             End_Index=i-1
             InterFace.extend(content[Start_Index:End_Index])
             Start_Index=i
-            Act_Flag=True
+            Temp_InterFace_Frisk = []
+            Temp_InterFace_Frisk.extend(InterFace)
+            if check_validity_interface_set(Temp_InterFace_Frisk) == True:
+                Act_Flag=True
+                Temp_InterFace_Frisk.clear()
+            else:
+                InterFace.clear()
         if CurrGCommand.find("; FEATURE:")!=-1 and CurrGCommand.find("; FEATURE: Support interface") == -1 and Copy_Flag:#这是另外一种挤出
             Copy_Flag=False
             End_Index=i
             InterFace.extend(content[Start_Index:End_Index])
-            Act_Flag=True
-        if CurrGCommand.find("; CHANGE_LAYER") != -1 and Act_Flag:
+            Temp_InterFace_Frisk = []
+            Temp_InterFace_Frisk.extend(InterFace)
+            if check_validity_interface_set(Temp_InterFace_Frisk) == True:
+                Act_Flag=True
+                Temp_InterFace_Frisk.clear()
+            else:
+                InterFace.clear()
+        if CurrGCommand.find("; layer num/total_layer_count") != -1 and Act_Flag:
             Last_XY_Command_FE_Flag=True
             Act_Flag=False
             # print(len(InterFace))
@@ -747,11 +771,11 @@ def main():
             print(";Unmounting Toolhead", file=TempExporter)
             print(para.Custom_Unmount_Gcode.strip("\n"), file=TempExporter)
             print(";Toolhead Unmounted", file=TempExporter)
-            print(";Move to the next print start position", file=TempExporter)
+            # print(";Move to the next print start position", file=TempExporter)
             print("G1 F" + str(para.Travel_Speed*60), file=TempExporter) 
-            print(Physical_Glueing_Point,file=TempExporter)
-            print(";Lowering Nozzle", file=TempExporter)
-            print("G1 Z" + str(round(Last_Layer_Height, 3)), file=TempExporter)
+            # print(Physical_Glueing_Point,file=TempExporter)
+            # print(";Lowering Nozzle", file=TempExporter)
+            # print("G1 Z" + str(round(Last_Layer_Height, 3)), file=TempExporter)
             # Insert InterfaceGlueing into Layer_Height_Index
             for i in range(len(InterFacePreGlueing)):
                 if InterFacePreGlueing[i].find("G1 ") != -1 and InterFacePreGlueing[i].find("G1 E") == -1 and InterFacePreGlueing[i].find("G1 F") == -1:
@@ -778,7 +802,10 @@ def main():
     First_layer_Tower_Flag=True
     First_layer_Flag=True
     Last_Layer_Height=0
-    Last_Key=max(Layer_Height_Index.keys())
+    try:
+        Last_Key=max(Layer_Height_Index.keys())
+    except:
+        Last_Key=0
     # print("Last Key:",Last_Key)
     Output_Filename = GSourceFile + "_Output.gcode"
     with open(Output_Filename+'.te', 'r', encoding='utf-8') as file:
@@ -799,7 +826,7 @@ def main():
         #输出首层塔代码
         if CurrGCommand.find("; CHANGE_LAYER") != -1 and First_layer_Tower_Flag==True and para.Have_Wiping_Components.get()==True:
             First_layer_Tower_Flag=False
-            print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
+            # print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
             para.Tower_Extrude_Ratio = round(para.First_Layer_Height/ 0.2, 3)
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
             for j in range(len(para.Tower_Base_Layer_Gcode)):
@@ -807,6 +834,8 @@ def main():
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E"+str(para.Retract_Length),file=GcodeExporter)
                     print("G92 E0",file=GcodeExporter)
+                elif para.Tower_Base_Layer_Gcode[j].find("NOZZLE_HEIGHT_ADJUST") != -1:
+                    print("G1 Z" + str(round(para.First_Layer_Height, 3) )+";Tower Z", file=GcodeExporter)
                 elif para.Tower_Base_Layer_Gcode[j].find("EXTRUDER_RETRACT")!=-1:
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E-"+str(para.Retract_Length),file=GcodeExporter)
@@ -822,37 +851,11 @@ def main():
                     print("G1 F" + str(para.First_Layer_Speed*60), file=GcodeExporter)
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
         
-        if Trigger_Flag==True and CurrGCommand.find("; update layer progress") != -1 and Layer_Height_Index[Current_Layer_Height][0] != []:
-            Trigger_Flag=False
-            print(";Rising Nozzle", file=GcodeExporter)
-            print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset+3, 3)), file=GcodeExporter)#Avoid collision
-            
-            print(";Mounting Toolhead", file=GcodeExporter)
-            print(para.Custom_Mount_Gcode.strip("\n"), file=GcodeExporter)
-            print(";Toolhead Mounted", file=GcodeExporter)
-            
-            print(";Inposition", file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
-            print(Layer_Height_Index[Current_Layer_Height][2], file=GcodeExporter)
-            print(";Adjusting Nozzle", file=GcodeExporter)
-            print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset, 3)), file=GcodeExporter)
-            print(";Preglueing Started", file=GcodeExporter)
-            print("G1 F" + str(para.Max_Speed), file=GcodeExporter)
-            for j in range(len(Layer_Height_Index[Current_Layer_Height][0])):
-
-                if Layer_Height_Index[Current_Layer_Height][0][j].find("G1 ") != -1 and Layer_Height_Index[Current_Layer_Height][0][j].find("G1 E") == -1 and Layer_Height_Index[Current_Layer_Height][0][j].find("G1 F") == -1:
-                    # Layer_Height_Index[Current_Layer_Height][0][j] = Process_GCode_Offset(Layer_Height_Index[Current_Layer_Height][0][j], para.X_Offset, para.Y_Offset, para.Z_Offset,'normal')
-                    print(Layer_Height_Index[Current_Layer_Height][0][j].strip("\n"), file=GcodeExporter)
-            Layer_Height_Index[Current_Layer_Height][0].clear()
-            print(";Preglueing Finished", file=GcodeExporter)
-            print(";Unmounting Toolhead", file=GcodeExporter)
-            print(para.Custom_Unmount_Gcode.strip("\n"), file=GcodeExporter)
-            print(";Toolhead Unmounted", file=GcodeExporter)
         #输出后续塔代码
         if CurrGCommand.find("; update layer progress") != -1 and para.Have_Wiping_Components.get()==True and Tower_Flag==True and First_layer_Tower_Flag==False:
             Tower_Flag=False
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter)
-            print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
+            # print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
             para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
             if para.Tower_Extrude_Ratio<0 or para.Tower_Extrude_Ratio==0:
                 para.Tower_Extrude_Ratio=round(para.Typical_Layer_Height / 0.2, 3)
@@ -860,6 +863,8 @@ def main():
                 # if para.Wiping_Gcode[j].find("G1 ") != -1 and para.Wiping_Gcode[j].find("G1 E") == -1 and para.Wiping_Gcode[j].find("G1 F") == -1:
                 if para.Wiping_Gcode[j].find("G1 F9600") != -1:#替换为用户自己切片的外墙速度
                     print("G1 F" + str(para.Typical_Layer_Speed*60), file=GcodeExporter)
+                elif para.Wiping_Gcode[j].find("NOZZLE_HEIGHT_ADJUST") != -1:
+                    print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
                 elif para.Wiping_Gcode[j].find("EXTRUDER_REFILL")!=-1:#补偿挤出
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E"+str(para.Retract_Length),file=GcodeExporter)
