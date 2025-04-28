@@ -6,7 +6,7 @@ import tkinter.messagebox
 import re, os, ctypes, sys
 from PIL import Image, ImageTk
 import base64
-from in_png import img as png1
+# from in_png import img as png1
 from tower import Temp_Wiping_Gcode, Temp_Tower_Base_Layer_Gcode
 from sys import exit
 import toml,argparse
@@ -47,12 +47,15 @@ left = (screenWidth - width) / 2
 top = (screenHeight - height) / 2
 window.geometry("%dx%d+%d+%d" % (width, height, left, top))
 window.resizable(width=False, height=False)
-tmp = open('in.png', 'wb')  # 创建临时的文件
-tmp.write(base64.b64decode(png1))  ##把这个one图片解码出来，写入文件中去。
-tmp.close()
-image0 = Image.open("in.png")
+# tmp = open('in.png', 'wb')  # 创建临时的文件
+# tmp.write(base64.b64decode(png1))  ##把这个one图片解码出来，写入文件中去。
+# tmp.close()
+mkpexecutable_dir = os.path.dirname(sys.executable)
+mkpinternal_dir = os.path.join(mkpexecutable_dir, "_internal")
+mkpimage_path = os.path.join(mkpinternal_dir, "in.png")
+image0 = Image.open(mkpimage_path)
 image0 = image0.resize((300, 160))
-os.remove("in.png")
+# os.remove("in.png")
 tk_image = ImageTk.PhotoImage(image0)
 label = tk.Label(window, image=tk_image)
 label.pack()
