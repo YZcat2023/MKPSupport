@@ -5,8 +5,12 @@ from tkinter import ttk, scrolledtext
 import tkinter.messagebox
 import re, os, ctypes, sys
 from PIL import Image, ImageTk
+import requests
+import webbrowser
+import chardet
 import base64
-from in_png import img as png1
+# from in_png import img as png1
+from calibe import Calibe as Calibe_Sing
 from tower import Temp_Wiping_Gcode, Temp_Tower_Base_Layer_Gcode
 from sys import exit
 import toml,argparse
@@ -28,9 +32,74 @@ try:
 
 except:
     Modify_Config_Flag=True
-    # GSourceFile = "C:\\Users\\Administrator\\Desktop\\GcodeTest\\test.gcode"
+
 ctypes.windll.shcore.SetProcessDpiAwareness(1)
 ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)
+
+local_version = "Ironworks"
+#更新
+def check_for_updates():
+    global local_version
+    url = "https://gitee.com/Jhmodel/MKPSupport/raw/main/UPDATE-OA.md"  
+    try:
+        response = requests.get(url, stream=True, verify=False)
+        if response.status_code == 200:
+            content = response.text  # 将文件内容加载到内存
+            if content.find(local_version) == -1:
+                show_update_window(content)
+                # root = tk.Tk()
+                # root.withdraw()
+                # user_choice = tk.messagebox.askyesno("更新提示", "检测到新版本，是否前往更新？"+"\n" + content)
+                # if user_choice:
+                #     webbrowser.open("https://gitee.com/Jhmodel/MKPSupport/releases/tag/Add_updaters")
+                #     sys.exit("User cancelled:用户终止")
+            # print("文件内容已加载到内存：")
+            # print(content)
+        else:
+            print(f"请求失败，状态码：{response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"请求失败，原因：{e}")
+
+def show_update_window(content):
+    # 创建主窗口
+    update_window = tk.Tk()
+    update_window.title("更新提示")
+    update_window.geometry("500x320")
+    update_window.resizable(width=False, height=False)
+    # 添加标签
+    label = tk.Label(update_window, text="检测到新版本:", anchor="w")
+    label.pack(pady=10)
+
+    # 添加文本框
+    text_box = tk.Text(update_window, wrap="word", height=10, width=50)
+    text_box.insert("1.0", content)  # 插入更新内容
+    text_box.config(state="disabled")  # 设置为只读
+    text_box.pack(padx=10,pady=10)
+
+    # 添加按钮
+    def on_update():
+        webbrowser.open("https://gitee.com/Jhmodel/MKPSupport/releases/")
+        # update_window.quit()  # 关闭窗口
+        update_window.destroy()
+        os._exit(0)
+        # sys.exit("User cancelled:用户终止")
+
+    # def on_cancel():
+    #     update_window.destroy()
+    #     pass
+
+    button_frame = ttk.Frame(update_window)
+    button_frame.pack()
+
+    update_button = ttk.Button(button_frame, text="前往更新", command=on_update)
+    update_button.pack()
+
+    # cancel_button = ttk.Button(button_frame, text="取消", command=on_cancel)
+    # cancel_button.pack()
+
+    # 启动窗口
+    # update_window.mainloop()
+
 # 创建窗口
 def center_window(window):
     window.update_idletasks()
@@ -38,7 +107,7 @@ def center_window(window):
     y = (window.winfo_screenheight() // 2) - (height // 2)
     window.geometry('+{}+{}'.format(x, y))
 window = tk.Tk()
-window.title('Markpen v3.1')
+window.title('MKPSupport Version '+local_version)
 screenWidth = window.winfo_screenwidth()  # 获取显示区域的宽度
 screenHeight = window.winfo_screenheight()  # 获取显示区域的高度
 width = 300  # 设定窗口宽度
@@ -47,12 +116,18 @@ left = (screenWidth - width) / 2
 top = (screenHeight - height) / 2
 window.geometry("%dx%d+%d+%d" % (width, height, left, top))
 window.resizable(width=False, height=False)
-tmp = open('in.png', 'wb')  # 创建临时的文件
-tmp.write(base64.b64decode(png1))  ##把这个one图片解码出来，写入文件中去。
-tmp.close()
-image0 = Image.open("in.png")
+# tmp = open('in.png', 'wb')  # 创建临时的文件
+# tmp.write(base64.b64decode(png1))  ##把这个one图片解码出来，写入文件中去。
+# tmp.close()
+mkpexecutable_dir = os.path.dirname(sys.executable)
+mkpinternal_dir = os.path.join(mkpexecutable_dir, "_internal")
+mkpimage_path = os.path.join(mkpinternal_dir, "in.png")
+try:
+    image0 = Image.open(mkpimage_path)
+except:
+    image0 = Image.open("in.png")
 image0 = image0.resize((300, 160))
-os.remove("in.png")
+# os.remove("in.png")
 tk_image = ImageTk.PhotoImage(image0)
 label = tk.Label(window, image=tk_image)
 label.pack()
@@ -100,7 +175,7 @@ def get_preset_values(Mode):
     root.withdraw()  # 隐藏主窗口
     popup = tk.Toplevel(root)
     winWidth = 510
-    winHeight = 460
+    winHeight = 490
     # 获取屏幕分辨率
     screenWidth = window.winfo_screenwidth()
     screenHeight = window.winfo_screenheight()
@@ -111,7 +186,7 @@ def get_preset_values(Mode):
     popup.resizable(width=False, height=False)
     popup.title("配置向导")
     labels = ["涂胶速度限制[MM/S]", "X坐标补偿值[MM]", "Y坐标补偿值[MM]", "喷嘴笔尖高度差[MM]", "自定义工具头获取 G-code", "自定义工具头收起 G-code",
-              "开启熨烫功能","熨烫速度[MM/S]","熨烫挤出乘数","使用内置擦嘴塔","擦料塔的起始点"]
+              "开启熨烫功能","熨烫速度[MM/S]","熨烫挤出乘数","使用内置擦嘴塔","擦料塔的起始点","擦料塔打印速度[MM/S]"]
     entries = []
     custom_font = tkFont.Font(family="SimHei", size=12)
     root.option_add("*Font", custom_font)
@@ -129,9 +204,11 @@ def get_preset_values(Mode):
         if para.Have_Wiping_Components.get()!=True:
             entry_x.config(state='disabled', disabledbackground='light grey')
             entry_y.config(state='disabled', disabledbackground='light grey')
+            entry_speed.config(state='disabled', disabledbackground='light grey')
         else:
             entry_x.config(state='normal')
             entry_y.config(state='normal')
+            entry_speed.config(state='normal')
             pass         
         print(para.Have_Wiping_Components.get())
 
@@ -188,6 +265,10 @@ def get_preset_values(Mode):
             entry_y.config(state='normal')
             entry_x.config(state='normal')
             entries.append((entry_x, entry_y))
+        elif label == "擦料塔打印速度[MM/S]":
+            entry_speed=tk.Entry(popup)
+            entry_speed.grid(row=i, column=1, padx=10)
+            entry_speed.insert(0, "50")
         else:
             entry.grid(row=i, column=1, padx=10)
             entries.append(entry)
@@ -233,6 +314,9 @@ def get_preset_values(Mode):
                 entry_y.delete(0, tk.END)
                 entry_x.insert(0, para.Wiper_x)
                 entry_y.insert(0, para.Wiper_y)
+            if label == "擦料塔打印速度[MM/S]":
+                entry_speed.delete(0, tk.END)
+                entry_speed.insert(0, para.Typical_Layer_Speed)
 
     def on_submit():
         global User_Input
@@ -249,7 +333,8 @@ def get_preset_values(Mode):
         User_Input.append(para.Have_Wiping_Components.get())
         User_Input.append(entry_x.get())
         User_Input.append(entry_y.get())
-        print(User_Input)
+        User_Input.append(entry_speed.get())
+        # print(User_Input)
         values = 1
         popup.destroy()
         root.quit()  # 关闭弹窗
@@ -299,6 +384,7 @@ def read_dialog_input():
     para.Have_Wiping_Components.set(User_Input[9])
     para.Wiper_x = round(float(User_Input[10]), 3)
     para.Wiper_y = round(float(User_Input[11]), 3)
+    para.Typical_Layer_Speed = round(float(User_Input[12]), 3)
 #这个函数用来从传入的filepath读取配置到para类中的变量
 def read_toml_config(file_path):
     para.Enable_ironing = tk.BooleanVar(value=False)
@@ -332,8 +418,8 @@ def read_toml_config(file_path):
         if para.Have_Wiping_Components.get()==True:
             para.Wiper_x = wiping_config['wiper_x']
             para.Wiper_y = wiping_config['wiper_y']
-    
-    print("para data:",para.Max_Speed,para.X_Offset,para.Y_Offset,para.Z_Offset,para.Custom_Mount_Gcode,para.Custom_Unmount_Gcode,para.Enable_ironing.get(),para.Ironing_Speed,para.Iron_Extrude_Ratio,para.Have_Wiping_Components.get(),para.Wiper_x,para.Wiper_y)
+            para.Typical_Layer_Speed = wiping_config['wipetower_speed']
+    # print("para data:",para.Max_Speed,para.X_Offset,para.Y_Offset,para.Z_Offset,para.Custom_Mount_Gcode,para.Custom_Unmount_Gcode,para.Enable_ironing.get(),para.Ironing_Speed,para.Iron_Extrude_Ratio,para.Have_Wiping_Components.get(),para.Wiper_x,para.Wiper_y)
 #这个函数用来创建一个输入框，目前只是用来输入预设名称
 def create_input_dialog(title, prompt):
     def on_submit():
@@ -402,6 +488,7 @@ def write_toml_config(file_path):
         print("have_wiping_components = "+Use_wiper_str+"#使用内置擦嘴塔Enable wiping components",file=f)
         print("wiper_x = "+str(para.Wiper_x),file=f)
         print("wiper_y = "+str(para.Wiper_y),file=f)
+        print("wipetower_speed = " + str(para.Typical_Layer_Speed) + " # 擦嘴塔打印速度Wipe tower print speed", file=f)
 #这个函数用来创建一个弹窗，让用户点击按钮复制命令到剪贴板
 def copy_user_command():
     root1 = tk.Tk()
@@ -452,7 +539,19 @@ def format_xyze_string(text):
     text = re.sub(r'(Z)([\d.]+)', lambda m: process_data(m), text)
     return text
 # print(format_xyze_string('G1 X.9 Y.9 Z.9'))
-
+def check_validity_interface_set(interface):
+    Have_Extrude_Flag=False
+    dot_count=0
+    for i in interface:
+        if i.find(" E") != -1 and i.find(" Z")==-1 and (i.find("X")!=-1 or i.find("Y")!=-1):
+            E_index=i.find("E")
+            TmpEChk=i[E_index:]
+            if TmpEChk.find("-") == -1:
+                dot_count+=1
+            if dot_count>=1:
+                Have_Extrude_Flag=True
+                break
+    return Have_Extrude_Flag
 #这个函数用来做Gcode的偏移，也负责E挤出的流量调整
 def Process_GCode_Offset(GCommand, x_offset, y_offset,z_offset, Mode):
     if GCommand.find("F") != -1:
@@ -521,7 +620,8 @@ def select_toml_file():
             get_preset_values("Normal")
             write_toml_config(os.path.join(folder_path, new_preset_name + ".toml"))
         else:
-            exit("User cancelled:用户终止")
+            os._exit(0)
+            # exit("User cancelled:用户终止")
     #这个函数是负责在刚刚打开以及新建，删除后刷新的
     def refresh_toml_list():
         def on_select(value):
@@ -560,8 +660,9 @@ def select_toml_file():
 
 
     # 创建选择 toml 文件的对话框
+    global local_version
     selection_dialog = tk.Toplevel(root)
-    selection_dialog.title("预设管理器")
+    selection_dialog.title("预设管理器 V3.1 "+local_version)
     selection_dialog.geometry("550x400")
     selected_toml = tk.StringVar()
     def on_confirm():
@@ -601,7 +702,53 @@ def select_toml_file():
 def environment_check():
     pass
 
+#这个函数用来删除interface末尾的WIPE，是从最末尾往前查的。它会查找最靠近结尾的;WIPE_START,记录其索引，然后删除从它到结尾的所有行
+def delete_wipe(interface):
+    Start_Index=0
+    End_Index=0
+    Follow_Flag=False
+    #检查end_index是否在后部
+    for i in range(len(interface)-1,-1,-1):
+        if interface[i].find("; WIPE_END") != -1:
+            End_Index=i
+            break
+        if i<len(interface)-15:
+            break
+
+    #检查这是否足够保险：从end_index开始往后查找，看看含有G1 X或者G1 Y且含有E的行（即挤出行）是否存在
+    for i in range(End_Index,len(interface)):
+        if (interface[i].find("G1 X") != -1 or interface[i].find("G1 Y") != -1) and interface[i].find("E") != -1:
+            Follow_Flag=True
+            
+            # tk.messagebox.showwarning(title='警报', message="Gcode中有挤出行:"+interface[i])
+            break
+
+    if End_Index!=0 and Follow_Flag==False:
+        for i in range(len(interface)-1,-1,-1):
+            if interface[i].find("; WIPE_START") != -1:
+                Start_Index=i
+                break
+        #切割interface，只保留start_index之前的行
+        interface=interface[:Start_Index]
+        #在末尾添加一个跳Z标记
+        interface.append(";ZJUMP_START")
+    else:
+        #如果最后一行是一个既含有（G1 X或者G1 Y）又含有F,且不含有E的行，那么把它删去
+        if (interface[-1].find("G1 X") != -1 or interface[-1].find("G1 Y") != -1 ) and interface[-1].find("F") != -1 and interface[-1].find("E") == -1:
+            interface=interface[:-1]#这一行肯定是空驶，删掉
+        #在末尾添加一个跳Z标记
+        interface.append(";ZJUMP_START")
+
+    #接下来查找interface中是否还有;WIPE_END，在每一个;WIPE_END之前都添加一个;ZJUMP_START
+    for i in range(len(interface)-1,-1,-1):
+        if interface[i].find("; WIPE_END") != -1:
+            interface.insert(i+1,";ZJUMP_START")
+            break
+    return interface
+
+
 def main():
+    check_for_updates()
     Layer_Flag = False#不再使用了
     Copy_Flag = False#指示当前的gcode是否应当拷贝
     Act_Flag = False#指示是否应该开始写入mkp相关的涂胶或者熨烫
@@ -618,7 +765,8 @@ def main():
     #如果用户是修改预设而不是唤起切片，就在这停下
     if Modify_Config_Flag:
         select_toml_file()
-        exit("Manager Exit")
+        os._exit(0)
+        # exit("Manager Exit")
     # tk.messagebox.showinfo(title='警报', message="GSourceFile:"+GSourceFile)
     # tk.messagebox.showinfo(title='警报', message="TomlName:"+TomlName)
     read_toml_config(TomlName)
@@ -633,13 +781,13 @@ def main():
     Diameter_Count=0
     for i in range(len(content)-1,-1,-1):
         CurrGCommand = content[i]
-        if CurrGCommand.find("; travel_speed =") != -1:
+        if CurrGCommand.find("; travel_speed = ") != -1:
             para.Travel_Speed = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
         if CurrGCommand.find("; nozzle_diameter = ") != -1:
             para.Nozzle_Diameter = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
-        if CurrGCommand.find("; first_layer_height = ") != -1:
+        if CurrGCommand.find("; initial_layer_print_height =") != -1:
             para.First_Layer_Height = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
         if CurrGCommand.find("; layer_height = ") != -1:
@@ -649,7 +797,8 @@ def main():
             para.First_Layer_Speed = Num_Strip(CurrGCommand)[0]
             Diameter_Count+=1
         if CurrGCommand.find("; outer_wall_speed =") != -1:
-            para.Typical_Layer_Speed = Num_Strip(CurrGCommand)[0]
+            # para.Typical_Layer_Speed = Num_Strip(CurrGCommand)[0]
+            # para.Typical_Layer_Speed=para.Typical_Layer_Speed*0.6
             Diameter_Count+=1
         if CurrGCommand.find("; retraction_length = ") != -1:
             para.Retract_Length = Num_Strip(CurrGCommand)[0]
@@ -676,7 +825,7 @@ def main():
             Layer_Thickness=Current_Layer_Height-Last_Layer_Height
 
         if CurrGCommand.find(";TYPE:Support interface") != -1:
-            Copy_Flag=True#开始记录
+            Copy_Flag=True
             Start_Index=i
             Last_XY_Command_FE_Flag=False
             # print(";LSTXY:"+last_xy_command_in_other_features)
@@ -684,16 +833,26 @@ def main():
         if Copy_Flag==True and CurrGCommand.find(";LAYER_CHANGE") != -1:
             #提前结算
             End_Index=i-1
-            InterFace.extend(content[Start_Index:End_Index])
+            InterFace.extend(delete_wipe(content[Start_Index:End_Index]))
             Start_Index=i
-            Act_Flag=True
-            # Last_XY_Command_FE_Flag=False
+            Temp_InterFace_Frisk = []
+            Temp_InterFace_Frisk.extend(InterFace)
+            if check_validity_interface_set(Temp_InterFace_Frisk) == True:
+                Act_Flag=True
+                Temp_InterFace_Frisk.clear()
+            else:
+                InterFace.clear()
         if CurrGCommand.find(";TYPE:")!=-1 and CurrGCommand.find(";TYPE:Support interface") == -1 and Copy_Flag:#这是另外一种挤出
             Copy_Flag=False
-            End_Index=i
-            InterFace.extend(content[Start_Index:End_Index])
-            Act_Flag=True
-            
+            End_Index=i-1
+            InterFace.extend(delete_wipe(content[Start_Index:End_Index]))
+            Temp_InterFace_Frisk = []
+            Temp_InterFace_Frisk.extend(InterFace)
+            if check_validity_interface_set(Temp_InterFace_Frisk) == True:
+                Act_Flag=True
+                Temp_InterFace_Frisk.clear()
+            else:
+                InterFace.clear()
         if CurrGCommand.find(";LAYER_CHANGE") != -1 and Act_Flag:
             Last_XY_Command_FE_Flag=True
             Act_Flag=False
@@ -719,14 +878,13 @@ def main():
                         print(InterFaceIroning[i].strip("\n"), file=TempExporter)
                 print(";Ironing Finished", file=TempExporter)
             # print("G92 E0",file=TempExporter)
+            print(";Rising Nozzle", file=TempExporter)
+            print("G1 Z" + str(round(Current_Layer_Height+para.Z_Offset+3, 3)), file=TempExporter)#Avoid collision
+
             print(";Mounting Toolhead", file=TempExporter)
             print(para.Custom_Mount_Gcode.strip("\n"), file=TempExporter)
             print(";Toolhead Mounted", file=TempExporter)
-            print(";Rising Nozzle", file=TempExporter)
-            try:
-                print("G1 Z" + str(round(Current_Layer_Height+para.Z_Offset+3, 3)), file=TempExporter)#Avoid collision
-            except:
-                pass
+            
             print(";Glueing Started", file=TempExporter)
             print(";Inposition", file=TempExporter)
             print("G1 F" + str(para.Travel_Speed*60), file=TempExporter) 
@@ -744,17 +902,29 @@ def main():
                             First_XY_Command_IN_Flag=False
                     InterFaceGlueing[i]=Process_GCode_Offset(InterFaceGlueing[i], para.X_Offset, para.Y_Offset, para.Z_Offset,'normal')
                     print(InterFaceGlueing[i].strip("\n"),file=TempExporter)
+                elif InterFaceGlueing[i].find(";ZJUMP_START") != -1:
+                    #从i开始，检查往后的i+1，i+2，i+3行等等谁含有G1 X 或者G1 Y,记录这一个数值
+                    NextStartIndex=i+1
+                    if i+1<len(InterFaceGlueing):
+                        for j in range(i+1, len(InterFaceGlueing)):
+                            if InterFaceGlueing[j].find("G1 X") != -1 or InterFaceGlueing[j].find("G1 Y") != -1:
+                                NextStartIndex=j
+                                break
+                        print("G1 Z" + str(round(Current_Layer_Height+para.Z_Offset+3, 3)), file=TempExporter)#Avoid spoiling
+                        TempJumpZ=Process_GCode_Offset(InterFaceGlueing[NextStartIndex], para.X_Offset, para.Y_Offset , para.Z_Offset+3,'normal')
+                        print(TempJumpZ.strip("\n"),file=TempExporter)
+                        print("G1 Z"+ str(round(Current_Layer_Height+para.Z_Offset, 3)), file=TempExporter)#Adjust
 
             print(";Glueing Finished", file=TempExporter)
             print("G1 Z" + str(round(Current_Layer_Height+para.Z_Offset+3, 3)), file=TempExporter)#Avoid collision
             print(";Unmounting Toolhead", file=TempExporter)
             print(para.Custom_Unmount_Gcode.strip("\n"), file=TempExporter)
             print(";Toolhead Unmounted", file=TempExporter)
-            print(";Move to the next print start position", file=TempExporter)
+            # print(";Move to the next print start position", file=TempExporter)
             print("G1 F" + str(para.Travel_Speed*60), file=TempExporter) 
-            print(Physical_Glueing_Point,file=TempExporter)
-            print(";Lowering Nozzle", file=TempExporter)
-            print("G1 Z" + str(round(Last_Layer_Height, 3)), file=TempExporter)
+            # print(Physical_Glueing_Point,file=TempExporter)
+            # print(";Lowering Nozzle", file=TempExporter)
+            # print("G1 Z" + str(round(Last_Layer_Height, 3)), file=TempExporter)
             # Insert InterfaceGlueing into Layer_Height_Index
             for i in range(len(InterFacePreGlueing)):
                 if InterFacePreGlueing[i].find("G1 ") != -1 and InterFacePreGlueing[i].find("G1 E") == -1 and InterFacePreGlueing[i].find("G1 F") == -1:
@@ -781,7 +951,10 @@ def main():
     First_layer_Tower_Flag=True
     First_layer_Flag=True
     Last_Layer_Height=0
-    Last_Key=max(Layer_Height_Index.keys())
+    try:
+        Last_Key=max(Layer_Height_Index.keys())
+    except:
+        Last_Key=0
     # print("Last Key:",Last_Key)
     Output_Filename = GSourceFile + "_Output.gcode"
     with open(Output_Filename+'.te', 'r', encoding='utf-8') as file:
@@ -800,9 +973,9 @@ def main():
             if Current_Layer_Height<Last_Key+0.4:
                 Tower_Flag=True
         #输出首层塔代码
-        if CurrGCommand.find(";LAYER_CHANGE") != -1 and First_layer_Tower_Flag==True and para.Have_Wiping_Components.get()==True:
+        if CurrGCommand.find(";LAYER_CHANGE") != -1 and First_layer_Tower_Flag==True and para.Have_Wiping_Components.get()==True and FirstLayer_Tower_Height>0.01:
             First_layer_Tower_Flag=False
-            print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
+            # print("G1 Z" + str(round(para.First_Layer_Height, 3) )+ ";TowerBase Z", file=GcodeExporter)#Adjust z height
             para.Tower_Extrude_Ratio = round(para.First_Layer_Height/ 0.2, 3)
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
             for j in range(len(para.Tower_Base_Layer_Gcode)):
@@ -810,6 +983,8 @@ def main():
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E"+str(para.Retract_Length),file=GcodeExporter)
                     print("G92 E0",file=GcodeExporter)
+                elif para.Tower_Base_Layer_Gcode[j].find("NOZZLE_HEIGHT_ADJUST") != -1:
+                    print("G1 Z" + str(round(para.First_Layer_Height, 3) )+";Tower Z", file=GcodeExporter)
                 elif para.Tower_Base_Layer_Gcode[j].find("EXTRUDER_RETRACT")!=-1:
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E-"+str(para.Retract_Length),file=GcodeExporter)
@@ -825,35 +1000,11 @@ def main():
                     print("G1 F" + str(para.First_Layer_Speed*60), file=GcodeExporter)
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
         
-        if Trigger_Flag==True and CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and Layer_Height_Index[Current_Layer_Height][0] != []:
-            Trigger_Flag=False
-            print(";Mounting Toolhead", file=GcodeExporter)
-            print(para.Custom_Mount_Gcode.strip("\n"), file=GcodeExporter)
-            print(";Toolhead Mounted", file=GcodeExporter)
-            print(";Rising Nozzle", file=GcodeExporter)
-            print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset+3, 3)), file=GcodeExporter)#Avoid collision
-            print(";Inposition", file=GcodeExporter)
-            print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter) 
-            print(Layer_Height_Index[Current_Layer_Height][2], file=GcodeExporter)
-            print(";Adjusting Nozzle", file=GcodeExporter)
-            print("G1 Z" + str(round(Layer_Height_Index[Current_Layer_Height][1]+para.Z_Offset, 3)), file=GcodeExporter)
-            print(";Preglueing Started", file=GcodeExporter)
-            print("G1 F" + str(para.Max_Speed), file=GcodeExporter)
-            for j in range(len(Layer_Height_Index[Current_Layer_Height][0])):
-
-                if Layer_Height_Index[Current_Layer_Height][0][j].find("G1 ") != -1 and Layer_Height_Index[Current_Layer_Height][0][j].find("G1 E") == -1 and Layer_Height_Index[Current_Layer_Height][0][j].find("G1 F") == -1:
-                    # Layer_Height_Index[Current_Layer_Height][0][j] = Process_GCode_Offset(Layer_Height_Index[Current_Layer_Height][0][j], para.X_Offset, para.Y_Offset, para.Z_Offset,'normal')
-                    print(Layer_Height_Index[Current_Layer_Height][0][j].strip("\n"), file=GcodeExporter)
-            Layer_Height_Index[Current_Layer_Height][0].clear()
-            print(";Preglueing Finished", file=GcodeExporter)
-            print(";Unmounting Toolhead", file=GcodeExporter)
-            print(para.Custom_Unmount_Gcode.strip("\n"), file=GcodeExporter)
-            print(";Toolhead Unmounted", file=GcodeExporter)
         #输出后续塔代码
         if CurrGCommand.find(";AFTER_LAYER_CHANGE") != -1 and para.Have_Wiping_Components.get()==True and Tower_Flag==True and First_layer_Tower_Flag==False:
             Tower_Flag=False
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter)
-            print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
+            # print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
             para.Tower_Extrude_Ratio=round((Current_Layer_Height-Last_Layer_Height) / 0.2,3)
             if para.Tower_Extrude_Ratio<0 or para.Tower_Extrude_Ratio==0:
                 para.Tower_Extrude_Ratio=round(para.Typical_Layer_Height / 0.2, 3)
@@ -861,6 +1012,8 @@ def main():
                 # if para.Wiping_Gcode[j].find("G1 ") != -1 and para.Wiping_Gcode[j].find("G1 E") == -1 and para.Wiping_Gcode[j].find("G1 F") == -1:
                 if para.Wiping_Gcode[j].find("G1 F9600") != -1:#替换为用户自己切片的外墙速度
                     print("G1 F" + str(para.Typical_Layer_Speed*60), file=GcodeExporter)
+                elif para.Wiping_Gcode[j].find("NOZZLE_HEIGHT_ADJUST") != -1:
+                    print("G1 Z"+ str(round(Current_Layer_Height, 3))+";Tower Z", file=GcodeExporter)
                 elif para.Wiping_Gcode[j].find("EXTRUDER_REFILL")!=-1:#补偿挤出
                     print("G92 E0",file=GcodeExporter)
                     print("G1 E"+str(para.Retract_Length),file=GcodeExporter)
@@ -881,12 +1034,267 @@ def main():
             print("G1 F" + str(para.Travel_Speed*60), file=GcodeExporter)
         print(CurrGCommand, file=GcodeExporter)
     GcodeExporter.close()
+
+    #输出偏移校准测试
+    #倒序查找;Precise Calibration或者;Rough Calibration或者;ZOffset Calibration
+    Mode=""
+    for i in range(len(content)):
+        if content[i].find("Precise Calibration") != -1:
+            Mode="Precise"
+            break
+        if content[i].find("Rough Calibration") != -1:
+            Mode="Rough"
+            break
+        if content[i].find("ZOffset Calibration") != -1:
+            Mode="ZOffset"
+            break
+    if Mode=="Rough" or Mode=="Precise" :
+        tk.messagebox.showinfo(title='提示', message="正在输出偏移校准测试")
+        with open(GSourceFile, 'r', encoding='utf-8') as file:
+            calibe = file.readlines()
+        # os.remove(Output_Filename)
+        CaliGcodeExporter = open(Output_Filename, "w", encoding="utf-8")
+        MachineType = ""
+        for i in range(len(calibe)):
+            if calibe[i].find(";===== machine: A1 =======") != -1:
+                MachineType = "A1"
+                break
+            if calibe[i].find(";===== machine: X1 ====") != -1:
+                MachineType = "X1"
+                break
+            if calibe[i].find(";===== machine: P1") != -1:
+                MachineType = "P1/P1S"
+                break
+            if calibe[i].find(";===== machine: A1 mini ============") != -1:
+                MachineType = "Generic"
+                break
+        if MachineType == "":
+            MachineType="Generic"
+        #输出文件
+        for i in range(len(calibe)):
+            print(calibe[i].strip("\n"), file=CaliGcodeExporter)
+            if calibe[i].find("; filament end gcode") != -1 and calibe[i].find("=") == -1 and Mode!="ZOffset":
+                #输出偏移校准
+                #挂载胶箱
+                print("G1 X100 Y100 Z10 F3000", file=CaliGcodeExporter)
+                print(";Rising nozzle to avoid collision", file=CaliGcodeExporter)
+                print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset+3, 3)), file=CaliGcodeExporter)
+                print(";Mounting Toolhead", file=CaliGcodeExporter)
+                print(para.Custom_Mount_Gcode.strip("\n"), file=CaliGcodeExporter)
+                print(";Toolhead Mounted", file=CaliGcodeExporter)
+
+                # if MachineType=="Generic" or MachineType=="A1":
+                #     print(Calibe_Sing, file=CaliGcodeExporter)#唱歌
+
+                #横线部分：
+                if MachineType!="Generic":
+                    Y_Cali_Line_DefaultX=64.825
+                    Y_Cali_Line_DefaultX_End=93.177
+                    Y_Cali_Line_DefaultY=104.298
+                else:
+                    Y_Cali_Line_DefaultX=26.779
+                    Y_Cali_Line_DefaultX_End=55.177
+                    Y_Cali_Line_DefaultY=66.298
+
+                #空驶累加计数器
+                Offset_Accumulate=0
+                #偏移指定器
+                Cali_Accumulate=0
+                if Mode=="Precise":
+                    Cali_Accumulate=-1.0
+                elif Mode=="Rough":
+                    Cali_Accumulate=-2.5
+               
+                
+                #Y校准运行次数
+                Y_Line=0
+                if MachineType=="Generic":
+                    Y_Line=10
+                else:
+                    Y_Line=11
+
+                #运行十次：
+                for i in range(Y_Line):
+                    #空驶到指定位置的调速F
+                    print("G1 F" + str(para.Travel_Speed*60), file=CaliGcodeExporter)
+                    #G1 X64.825,Y渐增
+                    OriginCaliLine="G1 X" + str(round(Y_Cali_Line_DefaultX, 3)) + " Y" + str(round(Y_Cali_Line_DefaultY+Offset_Accumulate, 3))#指定原值
+                    # tk.messagebox.showinfo(title='提示', message=" para.Y_Offset+Cali_Accumulate=:"+str(para.Y_Offset+Cali_Accumulate)+" para.Y_Offset:"+str(para.Y_Offset))
+                    print(Process_GCode_Offset(OriginCaliLine, para.X_Offset, para.Y_Offset+Cali_Accumulate,para.Z_Offset,'normal').strip("\n"), file=CaliGcodeExporter)#进行偏移
+                    print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset, 3)), file=CaliGcodeExporter)#Adjust Z
+                    #开始校准的调速F
+                    if para.Max_Speed>40:
+                        print("G1 F900", file=CaliGcodeExporter)
+                    else:
+                        print("G1 F" + str(para.Max_Speed*60), file=CaliGcodeExporter)
+                    #G1 X渐增,如果Offset_Accumulate>40,就不再增加xend了
+                    if Offset_Accumulate<40:
+                        OriginCaliLine="G1 X" + str(round(Y_Cali_Line_DefaultX_End+Offset_Accumulate, 3)) + " Y" + str(round(Y_Cali_Line_DefaultY+Offset_Accumulate, 3))#指定原值
+                    else:
+                        OriginCaliLine="G1 X" + str(round(Y_Cali_Line_DefaultX_End+40, 3)) + " Y" + str(round(Y_Cali_Line_DefaultY+Offset_Accumulate, 3))#指定原值
+                    print(Process_GCode_Offset(OriginCaliLine, para.X_Offset, para.Y_Offset+Cali_Accumulate,para.Z_Offset,'normal').strip("\n"), file=CaliGcodeExporter)#进行偏移
+                    Offset_Accumulate+=10
+                    if Mode=="Precise":
+                        Cali_Accumulate+=0.2
+                    elif Mode=="Rough":
+                        Cali_Accumulate+=0.5
+                    #抬升Z
+                    print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset+3, 3)), file=CaliGcodeExporter)
+                #纵线部分：
+                if MachineType!="Generic":
+                    X_Cali_Line_DefaultY=64.825
+                    X_Cali_Line_DefaultY_End=93.177
+                    X_Cali_Line_DefaultX=104.298
+                else:
+                    X_Cali_Line_DefaultY=26.779
+                    X_Cali_Line_DefaultY_End=55.177
+                    X_Cali_Line_DefaultX=66.298
+
+                #空驶累加计数器
+                Offset_Accumulate=0
+                #偏移指定器
+                Cali_Accumulate=0
+                if Mode=="Precise":
+                    Cali_Accumulate=-1.0
+                elif Mode=="Rough":
+                    Cali_Accumulate=-2.5
+                #运行十次：
+                for i in range(11):
+                    #空驶到指定位置的调速F
+                    print("G1 F" + str(para.Travel_Speed*60), file=CaliGcodeExporter)
+                    #空驶到指定位置
+                    #G1 Y64.825,X渐增
+                    OriginCaliLine="G1 X" + str(round(X_Cali_Line_DefaultX+Offset_Accumulate, 3)) + " Y" + str(round(X_Cali_Line_DefaultY, 3))#指定原值
+                    print(Process_GCode_Offset(OriginCaliLine, para.X_Offset+Cali_Accumulate, para.Y_Offset,para.Z_Offset,'normal').strip("\n"), file=CaliGcodeExporter)#进行偏移
+                    print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset, 3)), file=CaliGcodeExporter)#Adjust Z
+                    #开始校准的调速F
+                    if para.Max_Speed>40:
+                        print("G1 F900", file=CaliGcodeExporter)
+                    else:
+                        print("G1 F" + str(para.Max_Speed*60), file=CaliGcodeExporter)
+                    #G1 X渐增,如果Offset_Accumulate>40,就不再增加xend了
+                    if Offset_Accumulate<40:
+                        OriginCaliLine="G1 X" + str(round(X_Cali_Line_DefaultX+Offset_Accumulate, 3)) + " Y" + str(round(X_Cali_Line_DefaultY_End+Offset_Accumulate, 3))#指定原值
+                    else:
+                        OriginCaliLine="G1 X" + str(round(X_Cali_Line_DefaultX+Offset_Accumulate, 3)) + " Y" + str(round(X_Cali_Line_DefaultY_End+40, 3))#指定原值
+                    print(Process_GCode_Offset(OriginCaliLine, para.X_Offset+Cali_Accumulate, para.Y_Offset,para.Z_Offset,'normal').strip("\n"), file=CaliGcodeExporter)#进行偏移
+                    Offset_Accumulate+=10
+                    if Mode=="Precise":
+                        Cali_Accumulate+=0.2
+                    elif Mode=="Rough":
+                        Cali_Accumulate+=0.5
+                    #抬升Z 
+                    print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset+3, 3)), file=CaliGcodeExporter)
+
+                #卸载胶箱
+                print(";Unmounting Toolhead", file=CaliGcodeExporter)
+                print(para.Custom_Unmount_Gcode.strip("\n"), file=CaliGcodeExporter)
+                print(";Toolhead Unmounted", file=CaliGcodeExporter)
+
+                print("G1 X100 Y100 Z100", file=CaliGcodeExporter)#空驶
+
+                # if MachineType=="Generic" or MachineType=="A1":
+                #     print(Calibe_Sing, file=CaliGcodeExporter)#唱歌
+
+                #补全结束
+                print(calibe[i].strip("\n"), file=CaliGcodeExporter)
+        CaliGcodeExporter.close()
+    elif Mode=="ZOffset":
+        tk.messagebox.showinfo(title='提示', message="正在输出偏移校准测试")
+        with open(GSourceFile, 'r', encoding='utf-8') as file:
+            calibe = file.readlines()
+        # os.remove(Output_Filename)
+        CaliGcodeExporter = open(Output_Filename, "w", encoding="utf-8")
+        MachineType = ""
+        for i in range(len(calibe)):
+            if calibe[i].find(";===== machine: A1 =======") != -1:
+                MachineType = "A1"
+                break
+            if calibe[i].find(";===== machine: X1 ====") != -1:
+                MachineType = "X1"
+                break
+            if calibe[i].find(";===== machine: P1") != -1:
+                MachineType = "P1/P1S"
+                break
+            if calibe[i].find(";===== machine: A1 mini ============") != -1:
+                MachineType = "A1mini"
+                break
+            if MachineType == "":
+                MachineType="A1mini"
+        #输出文件
+        for i in range(len(calibe)):
+            print(calibe[i].strip("\n"), file=CaliGcodeExporter)
+            if calibe[i].find("; filament end gcode") != -1 and calibe[i].find("=") == -1:
+                #输出偏移校准
+                #挂载胶箱
+                print("G1 X100 Y100 Z10 F3000", file=CaliGcodeExporter)
+                print(";Rising nozzle to avoid collision", file=CaliGcodeExporter)
+                print("G1 Z" + str(round(para.First_Layer_Height+para.Z_Offset+3, 3)), file=CaliGcodeExporter)
+                print(";Mounting Toolhead", file=CaliGcodeExporter)
+                print(para.Custom_Mount_Gcode.strip("\n"), file=CaliGcodeExporter)
+                print(";Toolhead Mounted", file=CaliGcodeExporter)
+
+                # if MachineType=="A1mini" or MachineType=="A1":
+                #     print(Calibe_Sing, file=CaliGcodeExporter)#唱歌
+
+                #横线部分：
+                if MachineType!="A1mini":
+                    FR_Calibe_X_Start=68.210
+                    FR_Calibe_Y_Start=126.373
+                else:
+                    FR_Calibe_X_Start=30.210
+                    FR_Calibe_Y_Start=88.373
+
+                #空驶累加计数器
+                Offset_Accumulate=0
+                #Z变换计数器
+                if Mode=="ZMicro":
+                    Z_Accumulate=0.25
+                elif Mode=="ZOffset":
+                    Z_Accumulate=0.5
+
+                #运行十次：
+                for i in range(11):
+                    #空驶到指定位置的调速F
+                    print("G1 F" + str(para.Travel_Speed*60), file=CaliGcodeExporter)
+                    #移动到每一个的开始点：x+11,Y不变
+                    OriginCaliLine="G1 X" + str(round(FR_Calibe_X_Start+Offset_Accumulate, 3)) + " Y" + str(round(FR_Calibe_Y_Start, 3))
+                    #开始校准的调速F
+                    print("G1 F" + str(para.Max_Speed*60), file=CaliGcodeExporter)
+                    print("G1 Z" + str(round(0.4+para.Z_Offset+Z_Accumulate, 3)), file=CaliGcodeExporter)#Adjust Z to cer
+                    #做一个列表，把ZOffset_Sing按行化成列表
+                    ZOffset_Sing_SP=ZOffset_Sing.split("\n")
+                    for j in range(len(ZOffset_Sing_SP)):
+                        print(Process_GCode_Offset(ZOffset_Sing_SP[j], para.X_Offset+Offset_Accumulate+FR_Calibe_X_Start, para.Y_Offset+FR_Calibe_Y_Start,0,'normal').strip("\n"), file=CaliGcodeExporter)#进行偏移
+                    if Mode=="ZMicro":
+                        Z_Accumulate-=0.05
+                    elif Mode=="ZOffset":
+                        Z_Accumulate-=0.1
+                    Offset_Accumulate+=11
+                    print("G1 Z" + str(round(para.Z_Offset+30, 3)), file=CaliGcodeExporter)                    #抬升Z
+                    print("G4 P10000", file=CaliGcodeExporter)
+                
+                #卸载胶箱
+                print(";Unmounting Toolhead", file=CaliGcodeExporter)
+                print(para.Custom_Unmount_Gcode.strip("\n"), file=CaliGcodeExporter)
+                print(";Toolhead Unmounted", file=CaliGcodeExporter)
+
+                print("G1 X100 Y100 Z100", file=CaliGcodeExporter)#空驶
+
+                # if MachineType=="A1mini" or MachineType=="A1":
+                #     print(Calibe_Sing, file=CaliGcodeExporter)#唱歌
+
+                #补全结束
+                print(calibe[i].strip("\n"), file=CaliGcodeExporter)
+        CaliGcodeExporter.close()
+            
     try:
         os.remove(GSourceFile)
         os.remove(Output_Filename+'.te')
         os.rename(Output_Filename, GSourceFile)
     except:
         tk.messagebox.showinfo(title='警报', message='错误')
+    
     exit(0)
 
 if __name__ == "__main__":
