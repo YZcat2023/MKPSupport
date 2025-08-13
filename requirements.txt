@@ -1,0 +1,6 @@
+requests
+chardet
+toml
+customtkinter
+CTkMessagebox
+Pillow
