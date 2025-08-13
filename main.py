@@ -40,7 +40,7 @@ except:
     Modify_Config_Flag=True
 
 # ctypes.windll.shcore.SetProcessDpiAwareness(1)
-ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
+# ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)/100
 
 def CenterWindowToDisplay(Screen: ctk, width: int, height: int, scale_factor: float = 1.0):
     """Centers the window to the main display/monitor"""
@@ -116,9 +116,17 @@ window = ctk.CTk()
 window.title('MKPSupport Version '+local_version)
 window.geometry("300x160")
 window.resizable(width=False, height=False)
-mkpexecutable_dir = os.path.dirname(sys.executable)
-mkpinternal_dir = os.path.join(mkpexecutable_dir, "_internal")
-mkpimage_path = os.path.join(mkpinternal_dir, "in.png")
+
+mkpimage_path = "in.png"
+# 判断是否为exe
+if getattr(sys, 'frozen', False):
+    mkpexecutable_dir = os.path.dirname(sys.executable)
+    mkpinternal_dir = os.path.join(mkpexecutable_dir, "_internal")
+    mkpimage_path = os.path.join(mkpinternal_dir, "in.png")
+elif __file__:
+    mkpexecutable_dir = os.path.dirname(__file__)
+    mkpimage_path = os.path.join(mkpexecutable_dir, "in.png")
+
 try:
     image0 = Image.open(mkpimage_path)
 except:
@@ -2370,7 +2378,7 @@ def select_toml_file():
             #写入配置文件
             write_toml_config(z_save_option_value)
             para.Temp_ZOffset_Calibr = 0  # 重置临时偏移值
-            show_info_dialog("结果", f"喷嘴笔尖高度差校准结果已保存到 {z_save_option.get()+".toml"}\n\n原偏移值为: {Temp_Obsolete_ZOffset:.2f}mm\n\n新Z偏移值为: {para.Z_Offset:.2f}mm")
+            show_info_dialog("结果", f"喷嘴笔尖高度差校准结果已保存到 {z_save_option.get()}.toml\n\n原偏移值为: {Temp_Obsolete_ZOffset:.2f}mm\n\n新Z偏移值为: {para.Z_Offset:.2f}mm")
             ZSave.configure(state="disabled",fg_color="grey")  # 禁用保存按钮
 
         def save_xy_offset():
