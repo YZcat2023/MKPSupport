@@ -12,8 +12,6 @@
       <img src="https://img.shields.io/badge/Pillow-10.0%2B-green" alt="pillow">
       <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="license">
    </p>
-   <a href="README.md">English</a> |
-   <a href="#"><b>中文(简体)</b></a>
    <p>
       </a>
    </p>
