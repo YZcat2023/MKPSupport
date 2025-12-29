@@ -54,6 +54,7 @@ Showcase of actual printed test pieces. Note the extremely smooth support surfac
 ### 1. Prepare Materials
 
 🛒 You need to purchase the components indicated in the BOM list for your specific printer model.
+
   <a href="Printers/P1/"><strong>P1 机型</strong></a><br>
   <a href="Printers/A1/"><strong>A1 机型</strong></a><br>
   <a href="Printers/A1M/"><strong>A1M 机型</strong></a>
