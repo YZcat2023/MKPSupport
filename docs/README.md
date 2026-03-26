@@ -37,7 +37,7 @@ Still troubled by hard-to-remove 3D printing supports and the marks they leave b
 
 ✅ **Saves Material**: MKP doesn't require material changes or flushing.
 
-✅ **Perfect Surface**: The support contact surface is flat and smooth.
+✅ **Perfect Surface**: The support surface is flat and smooth.
 
 ✅ **Increases Success Rate**: Reduces the risk of damage during support removal.
 
